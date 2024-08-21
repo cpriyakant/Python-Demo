@@ -31,13 +31,14 @@ jobs:
       - name: Analyze Bandit results
         id: analyze_bandit
         run: |
+          set -e
           CRITICAL_VULNS=$(jq '.results | .[] | select(.issue_severity == "HIGH")' bandit_output.json | wc -l)
           if [ "$CRITICAL_VULNS" -gt 0 ]; then
             echo "BLOCK=true" >> $GITHUB_ENV
             echo "issue found"
-          else:
+          else
             echo "BLOCK=false" >> $GITHUB_ENV
-             echo "issue not found"
+            echo "issue not found"
           fi
 
       - name: Block PR if Critical Vulnerabilities Found
