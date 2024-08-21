@@ -33,26 +33,32 @@ jobs:
         run: |
           CRITICAL_VULNS=$(jq '.results | .[] | select(.issue_severity == "CRITICAL")' bandit_output.json | wc -l)
           if [ "$CRITICAL_VULNS" -gt 0 ]; then
-            echo "Found $CRITICAL_VULNS critical vulnerabilities."
             echo "BLOCK=true" >> $GITHUB_ENV
-          else
+          else:
             echo "BLOCK=false" >> $GITHUB_ENV
+
+      - name: Block PR if Critical Vulnerabilities Found
+        if: env.BLOCK == 'true'
+        run: exit 1
+
+      - name: Merge PR if No Critical Vulnerabilities Found
+        if: env.BLOCK == 'false'
+        run: exit 0
+
+      - name: Determine Comment
+        id: set_comment
+        run: |
+          if [ "$BLOCK" = "true" ]; then
+            echo "comment=Block" >> $GITHUB_ENV
+          else
+            echo "comment=Successful" >> $GITHUB_ENV
           fi
 
-      - name: Block or Merge PR
-        if: env.BLOCK == 'true'
-        run: |
-          echo "::set-output name=comment::Block"
-          exit 1
-        else:
-          echo "::set-output name=comment::Successful"
-          exit 0
-
-      - name: Post comment
+      - name: Post Comment
         uses: actions/github-script@v6
         with:
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
-              body: '${{ steps.analyze_bandit.outputs.comment }}'
+              body: process.env.comment
             })
