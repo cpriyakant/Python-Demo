@@ -1,0 +1,58 @@
+name: Bandit Code Scan
+
+on: 
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        id: bandit_scan
+        run: |
+          bandit -r -lll -f json > bandit_output.json || true
+          cat bandit_output.json
+
+      - name: Analyze Bandit results
+        id: analyze_bandit
+        run: |
+          CRITICAL_VULNS=$(jq '.results | .[] | select(.issue_severity == "CRITICAL")' bandit_output.json | wc -l)
+          if [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "Found $CRITICAL_VULNS critical vulnerabilities."
+            echo "BLOCK=true" >> $GITHUB_ENV
+          else
+            echo "BLOCK=false" >> $GITHUB_ENV
+          fi
+
+      - name: Block or Merge PR
+        if: env.BLOCK == 'true'
+        run: |
+          echo "::set-output name=comment::Block"
+          exit 1
+        else:
+          echo "::set-output name=comment::Successful"
+          exit 0
+
+      - name: Post comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              body: '${{ steps.analyze_bandit.outputs.comment }}'
+            })
