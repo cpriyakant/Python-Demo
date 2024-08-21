@@ -25,7 +25,7 @@ jobs:
       - name: Run Bandit
         id: bandit_scan
         run: |
-          bandit -r -lll -f json > bandit_output.json || true
+          bandit -r . --severity all --format json > bandit_output.json || true
           cat bandit_output.json
 
       - name: Analyze Bandit results
