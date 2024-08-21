@@ -25,7 +25,7 @@ jobs:
       - name: Run Bandit
         id: bandit_scan
         run: |
-          bandit -r -lll -f json > bandit_output.json || true
+          bandit -r . --severity all --format json > bandit_output.json || true
           cat bandit_output.json
 
       - name: Analyze Bandit results
@@ -42,31 +42,17 @@ jobs:
           fi
 
       - name: Block PR if Critical Vulnerabilities Found
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: env.BLOCK == 'true'
-        continue-on-error: true
-        run: exit 1
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerabilities detected in the code. Please address the following issues before merging:"
+          exit 1
 
       - name: Merge PR if No Critical Vulnerabilities Found
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: env.BLOCK == 'false'
-        continue-on-error: true
         run: |
-          echo "Merging PR..."
+          gh pr comment ${{ github.event.pull_request.number }} --body "Successful: No critical or high-severity vulnerabilities found."
           gh pr merge ${{ github.event.pull_request.number }} --merge
-
-      - name: Determine Comment
-        id: set_comment
-        run: |
-          if [ "$BLOCK" = "true" ]; then
-            echo "comment=Block" >> $GITHUB_ENV
-          else
-            echo "comment=Successful" >> $GITHUB_ENV
-          fi
-
-      - name: Post Comment
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              body: process.env.comment
-            })
