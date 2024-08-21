@@ -7,6 +7,10 @@ on:
 jobs:
   bandit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,40 +29,35 @@ jobs:
       - name: Run Bandit
         id: bandit_scan
         run: |
-          bandit -r -lll -f json > bandit_output.json || true
+          bandit -r . --severity all --format json > bandit_output.json || true
           cat bandit_output.json
 
       - name: Analyze Bandit results
         id: analyze_bandit
         run: |
-          CRITICAL_VULNS=$(jq '.results | .[] | select(.issue_severity == "CRITICAL")' bandit_output.json | wc -l)
+          set -e
+          CRITICAL_VULNS=$(jq '.results | .[] | select(.issue_severity == "HIGH")' bandit_output.json | wc -l)
           if [ "$CRITICAL_VULNS" -gt 0 ]; then
             echo "BLOCK=true" >> $GITHUB_ENV
-          else:
-            echo "BLOCK=false" >> $GITHUB_ENV
-
-      - name: Block PR if Critical Vulnerabilities Found
-        if: env.BLOCK == 'true'
-        run: exit 1
-
-      - name: Merge PR if No Critical Vulnerabilities Found
-        if: env.BLOCK == 'false'
-        run: exit 0
-
-      - name: Determine Comment
-        id: set_comment
-        run: |
-          if [ "$BLOCK" = "true" ]; then
-            echo "comment=Block" >> $GITHUB_ENV
+            echo "issue found"
           else
-            echo "comment=Successful" >> $GITHUB_ENV
+            echo "BLOCK=false" >> $GITHUB_ENV
+            echo "issue not found"
           fi
 
-      - name: Post Comment
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              body: process.env.comment
-            })
+      - name: Block PR if Critical Vulnerabilities Found
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.BLOCK == 'true'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerabilities detected in the code.:"
+          gh pr close ${{ github.event.pull_request.number }} --comment "Closed due to critical vulnerabilities"
+          exit 1
+
+      - name: Merge PR if No Critical Vulnerabilities Found
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.BLOCK == 'false'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "Successful: No critical or high-severity vulnerabilities found."
+          gh pr merge ${{ github.event.pull_request.number }} --merge
