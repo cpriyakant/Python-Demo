@@ -8,4 +8,4 @@ def hello():
     return f"Hello, {name}!"  # Vulnerable to XSS
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
