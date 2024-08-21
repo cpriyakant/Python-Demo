@@ -50,7 +50,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: env.BLOCK == 'true'
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerabilities detected in the code. Please address the following issues before merging:"
+          gh pr comment ${{ github.event.pull_request.number }} --body "Block: Critical vulnerabilities detected in the code.:"
+          gh pr close ${{ github.event.pull_request.number }} --comment "Closed due to critical vulnerabilities"
           exit 1
 
       - name: Merge PR if No Critical Vulnerabilities Found
