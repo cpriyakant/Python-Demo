@@ -1,7 +1,7 @@
 import os
 
 # Vulnerability 1: Hardcoded secret key (Insecure cryptographic key)
-SECRET_KEY = "my_very_secret_key"
+SECRET_KEY = "my_very_secret_key_new"
 
 def insecure_code():
     # Vulnerability 2: Use of eval() (Potentially dangerous code execution)
