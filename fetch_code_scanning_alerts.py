@@ -4,7 +4,7 @@ import json
 # GitHub Repository details
 owner = 'cpriyakant'
 repo = 'Python-Demo'
-token = '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' #Only Read Access to code scanning Alerts for the above repo
+token = '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' #Only Read Access to code scanning Alerts for the above repo
 
 # CWE API endpoint template
 cwe_api_url = 'https://cwe-api.mitre.org/api/v1/cwe/weakness/'
